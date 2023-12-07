@@ -25,6 +25,14 @@ function generateHmacSignature(data, secretKey) {
 
 
 app.post('/api/leads', async (req, res) => {
+
+    const clientSignature = req.headers.signature;
+    const serverSignature = generateHmacSignature(JSON.stringify(req.body), process.env.SECRET_KEY);
+
+    if (clientSignature !== serverSignature) {
+        return res.status(401).send('Invalid signature');
+    }
+
     const { remarks, currentPage } = req.body;
 
     const itemsPerPage = 12;
@@ -60,21 +68,35 @@ app.post('/api/leads', async (req, res) => {
 });
 
 app.post('/api/getLeadByPhone', async (req, res) => {
+    const clientSignature = req.headers.signature;
+    const serverSignature = generateHmacSignature(JSON.stringify(req.body), process.env.SECRET_KEY);
+
+    if (clientSignature !== serverSignature) {
+        return res.status(401).send('Invalid signature');
+    }
     const { phoneNumber } = req.body;
 
     const apiUrl = `http://api-in21.leadsquared.com/v2/LeadManagement.svc/RetrieveLeadByPhoneNumber?accessKey=${accessKey}&secretKey=${secretKey}&phone=${phoneNumber}`;
 
     try {
         const response = await axios.get(apiUrl);
-        res.json(response.data);
+        const responseData=response.data;
+        const signature = generateHmacSignature(JSON.stringify(responseData), process.env.SECRET_KEY);
+        res.json({ data: responseData, signature: signature });
     } catch (error) {
         res.status(500).send('Error fetching lead');
     }
 });
 
-app.post('/submitForm', async (req, res) => {
-    const bodyData = req.body;
+app.post('/api/submitForm', async (req, res) => {
+    const clientSignature = req.headers.signature;
+    const serverSignature = generateHmacSignature(JSON.stringify(req.body), process.env.SECRET_KEY);
 
+    if (clientSignature !== serverSignature) {
+        return res.status(401).send('Invalid signature');
+    }
+    const bodyData = req.body;
+    
     const apiUrl = `http://api-in21.leadsquared.com/v2/LeadManagement.svc/Lead.Create?accessKey=${accessKey}&secretKey=${secretKey}`;
 
     try {
@@ -87,7 +109,13 @@ app.post('/submitForm', async (req, res) => {
     }
 });
 
-app.post('/updateLeadStatus', async (req, res) => {
+app.post('/api/updateLeadStatus', async (req, res) => {
+    const clientSignature = req.headers.signature;
+    const serverSignature = generateHmacSignature(JSON.stringify(req.body), process.env.SECRET_KEY);
+
+    if (clientSignature !== serverSignature) {
+        return res.status(401).send('Invalid signature');
+    }
     const { leadId, value } = req.body;
     
     const url = `http://api-in21.leadsquared.com/v2/LeadManagement.svc/Lead.Update?accessKey=${accessKey}&secretKey=${secretKey}&leadId=${leadId}`;
